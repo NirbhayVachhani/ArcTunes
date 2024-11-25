@@ -90,7 +90,7 @@ ArcTunes/
 ## Installation
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/ArcTunes.git
+   git clone https://github.com/NirbhayVachhani/ArcTunes.git
    cd ArcTunes
    ```
 
