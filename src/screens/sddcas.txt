@@ -1,0 +1,1432 @@
+Integrating Firebase Authentication into your React Native (Expo) application will enable secure user sign-in and sign-up functionalities. Below is a comprehensive guide to set up Firebase in your project and modify your existing **SignIn** and **SignUp** screens to work with Firebase Authentication using email and password. Additionally, I'll provide guidance on integrating Google and Apple sign-in methods.
+
+---
+
+## Table of Contents
+
+1. [Prerequisites](#prerequisites)
+2. [1. Setting Up Firebase Project](#1-setting-up-firebase-project)
+3. [2. Installing Firebase SDK](#2-installing-firebase-sdk)
+4. [3. Configuring Firebase in Your App](#3-configuring-firebase-in-your-app)
+5. [4. Implementing Sign-Up with Firebase](#4-implementing-sign-up-with-firebase)
+6. [5. Implementing Sign-In with Firebase](#5-implementing-sign-in-with-firebase)
+7. [6. Implementing Google Sign-In](#6-implementing-google-sign-in)
+8. [7. Implementing Apple Sign-In](#7-implementing-apple-sign-in)
+9. [8. Managing Authentication State](#8-managing-authentication-state)
+10. [9. Securing Firebase Configuration](#9-securing-firebase-configuration)
+11. [10. Finalizing Navigation](#10-finalizing-navigation)
+12. [Troubleshooting](#12-troubleshooting)
+13. [Conclusion](#13-conclusion)
+
+---
+
+## Prerequisites
+
+Before we begin, ensure you have the following:
+
+- **Node.js** and **npm/yarn** installed on your machine.
+- **Expo CLI** installed globally. If not, install it using:
+  ```bash
+  npm install -g expo-cli
+  ```
+- An existing React Native (Expo) project. Based on your code snippets, it seems you have one already.
+
+---
+
+## 1. Setting Up Firebase Project
+
+### a. Create a Firebase Project
+
+1. Go to the [Firebase Console](https://console.firebase.google.com/).
+2. Click on **"Add project"**.
+3. Enter your project name (e.g., "ArcTunes") and follow the prompts.
+4. Once the project is created, you'll be directed to the project dashboard.
+
+### b. Register Your App with Firebase
+
+1. In the Firebase project dashboard, click on the **"Web"** icon (`</>`) to add a web app (even though you're using React Native, Firebase recommends this for configuration).
+
+2. **Register App:**
+   - **Nickname:** Enter a nickname (e.g., "ArcTunesApp").
+   - **Set up Firebase Hosting:** You can skip this for now by unchecking the box.
+   - Click **"Register app"**.
+
+3. **Firebase SDK Configuration:**
+   - You'll receive Firebase configuration details. Keep this handy; you'll need it in the next steps.
+   - It looks like this:
+     ```javascript
+     const firebaseConfig = {
+       apiKey: "YOUR_API_KEY",
+       authDomain: "YOUR_AUTH_DOMAIN",
+       projectId: "YOUR_PROJECT_ID",
+       storageBucket: "YOUR_STORAGE_BUCKET",
+       messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+       appId: "YOUR_APP_ID",
+     };
+     ```
+
+### c. Enable Authentication Methods
+
+1. In the Firebase project dashboard, navigate to **"Authentication"** from the left sidebar.
+2. Click on the **"Get started"** button.
+3. **Enable Sign-In Methods:**
+   - **Email/Password:** 
+     - Go to the **"Sign-in method"** tab.
+     - Click on **"Email/Password"**.
+     - Enable it and click **"Save"**.
+   - **Google:** *(Optional, see Section 6)*
+   - **Apple:** *(Optional, see Section 7)*
+
+---
+
+## 2. Installing Firebase SDK
+
+In your project directory, install Firebase SDK:
+
+```bash
+# Using npm
+npm install firebase
+
+# Using yarn
+yarn add firebase
+```
+
+Additionally, for Google and Apple sign-in, you'll need specific packages:
+
+```bash
+# For Google Sign-In
+expo install expo-auth-session
+
+# For Apple Sign-In (iOS only)
+expo install expo-apple-authentication
+```
+
+---
+
+## 3. Configuring Firebase in Your App
+
+Create a Firebase configuration file to initialize Firebase.
+
+### a. Create `firebase.js`
+
+In your project’s `src` directory, create a new folder named `firebase` and inside it, create `firebase.js`.
+
+```bash
+mkdir src/firebase
+touch src/firebase/firebase.js
+```
+
+### b. Initialize Firebase
+
+**src/firebase/firebase.js**
+
+```javascript
+// src/firebase/firebase.js
+
+import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",               // Replace with your API key
+  authDomain: "YOUR_AUTH_DOMAIN",       // Replace with your Auth domain
+  projectId: "YOUR_PROJECT_ID",         // Replace with your Project ID
+  storageBucket: "YOUR_STORAGE_BUCKET", // Replace with your Storage Bucket
+  messagingSenderId: "YOUR_SENDER_ID",  // Replace with your Messaging Sender ID
+  appId: "YOUR_APP_ID",                 // Replace with your App ID
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+
+// Initialize Firebase Authentication and export it
+export const auth = getAuth(app);
+```
+
+**⚠️ Important:** Replace all placeholder values (`YOUR_API_KEY`, etc.) with the actual values from your Firebase project configuration.
+
+---
+
+## 4. Implementing Sign-Up with Firebase
+
+Let's modify your `SignUp` screen to integrate Firebase Sign-Up using email and password.
+
+### a. Update `SignUp.js`
+
+**src/screens/SignUp.js**
+
+```jsx
+// src/screens/SignUp.js
+
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  Image,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../firebase/firebase'; // Adjust the path if necessary
+import { useNavigation } from '@react-navigation/native';
+
+const SignUp = () => {
+  const navigation = useNavigation();
+
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleSignUp = () => {
+    if (!fullName || !email || !password) {
+      Alert.alert('Error', 'Please fill in all fields.');
+      return;
+    }
+
+    // Firebase Sign-Up
+    createUserWithEmailAndPassword(auth, email, password)
+      .then((userCredential) => {
+        // Signed up
+        const user = userCredential.user;
+        console.log('User registered:', user.email);
+        Alert.alert('Success', 'Account created successfully!');
+        navigation.navigate('Home');
+      })
+      .catch((error) => {
+        console.error(error);
+        let errorMessage = 'Something went wrong.';
+        if (error.code === 'auth/email-already-in-use') {
+          errorMessage = 'The email address is already in use.';
+        } else if (error.code === 'auth/invalid-email') {
+          errorMessage = 'The email address is invalid.';
+        } else if (error.code === 'auth/weak-password') {
+          errorMessage = 'The password is too weak.';
+        }
+        Alert.alert('Sign Up Error', errorMessage);
+      });
+  };
+
+  return (
+    <View style={styles.container}>
+      {/* Back button to go back to Selection */}
+      <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('Selection')}>
+        <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+      </TouchableOpacity>
+
+      <Image
+        source={require('../../../assets/horizontal.png')} // Adjust the path if necessary
+        style={[styles.logo, { width: 400, height: 200 }]}
+      />
+      <Text style={styles.title}>Sign Up</Text>
+      <Text style={styles.subtitle}>If You Need Any Support Click Here</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Full Name"
+        placeholderTextColor="#AAAAAA"
+        value={fullName}
+        onChangeText={setFullName}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Enter Email"
+        placeholderTextColor="#AAAAAA"
+        keyboardType="email-address"
+        autoCapitalize="none"
+        value={email}
+        onChangeText={setEmail}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Password"
+        placeholderTextColor="#AAAAAA"
+        secureTextEntry={true}
+        value={password}
+        onChangeText={setPassword}
+      />
+      <TouchableOpacity>
+        <Text style={styles.recoveryText}>Recovery Password</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.button} onPress={handleSignUp}>
+        <Text style={styles.buttonText}>Create Account</Text>
+      </TouchableOpacity>
+      <Text style={styles.orText}>Or</Text>
+      <View style={styles.iconContainer}>
+        {/* Google Sign-In Button */}
+        <TouchableOpacity onPress={() => { /* Implement Google Sign-In */ }}>
+          <Image
+            source={{ uri: 'https://img.icons8.com/color/48/000000/google-logo.png' }}
+            style={styles.icon}
+          />
+        </TouchableOpacity>
+        {/* Apple Sign-In Button */}
+        <TouchableOpacity onPress={() => { /* Implement Apple Sign-In */ }}>
+          <Image
+            source={{ uri: 'https://img.icons8.com/ios-filled/50/000000/mac-os.png' }}
+            style={styles.icon}
+          />
+        </TouchableOpacity>
+      </View>
+      <TouchableOpacity onPress={() => navigation.navigate('SignIn')}>
+        <Text style={styles.footerText}>
+          Already A Member? <Text style={styles.footerLink}>Sign In</Text>
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#1E1E2C',
+    padding: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backButton: {
+    position: 'absolute',
+    top: 40,
+    left: 20,
+    zIndex: 1,
+  },
+  logo: {
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 24,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#AAAAAA',
+    marginBottom: 20,
+  },
+  input: {
+    width: '100%',
+    padding: 15,
+    borderWidth: 1,
+    borderColor: '#333333',
+    borderRadius: 10,
+    marginBottom: 10,
+    color: '#FFFFFF',
+  },
+  recoveryText: {
+    alignSelf: 'flex-end',
+    color: '#00ADEF',
+    marginBottom: 20,
+  },
+  button: {
+    backgroundColor: '#00ADEF',
+    padding: 15,
+    borderRadius: 30,
+    marginBottom: 10,
+    width: '100%',
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  orText: {
+    color: '#FFFFFF',
+    marginVertical: 10,
+  },
+  iconContainer: {
+    flexDirection: 'row',
+    marginBottom: 20,
+  },
+  icon: {
+    width: 40,
+    height: 40,
+    marginHorizontal: 10,
+  },
+  footerText: {
+    color: '#AAAAAA',
+  },
+  footerLink: {
+    color: '#00ADEF',
+  },
+});
+
+export default SignUp;
+```
+
+### b. Explanation
+
+- **Import Statements:**
+  - `createUserWithEmailAndPassword` from `firebase/auth` handles the registration.
+  - `auth` is imported from your Firebase configuration.
+
+- **State Management:**
+  - `fullName`, `email`, and `password` are managed using React's `useState`.
+
+- **`handleSignUp` Function:**
+  - Validates that all fields are filled.
+  - Uses Firebase's `createUserWithEmailAndPassword` to register the user.
+  - On success, navigates to the "Home" screen.
+  - On failure, displays appropriate error messages.
+
+- **UI Components:**
+  - Back button navigates to the "Selection" screen.
+  - Input fields for full name, email, and password.
+  - Buttons for signing up and placeholders for Google and Apple sign-in.
+
+---
+
+## 5. Implementing Sign-In with Firebase
+
+Next, modify your `SignIn` screen to integrate Firebase Sign-In using email and password.
+
+### a. Update `SignIn.js`
+
+**src/screens/SignIn.js**
+
+```jsx
+// src/screens/SignIn.js
+
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  Image,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../firebase/firebase'; // Adjust the path if necessary
+import { useNavigation } from '@react-navigation/native';
+
+const SignIn = () => {
+  const navigation = useNavigation();
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleSignIn = () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please fill in all fields.');
+      return;
+    }
+
+    // Firebase Sign-In
+    signInWithEmailAndPassword(auth, email, password)
+      .then((userCredential) => {
+        // Signed in
+        const user = userCredential.user;
+        console.log('User signed in:', user.email);
+        Alert.alert('Success', 'Sign in successful!');
+        navigation.navigate('Home');
+      })
+      .catch((error) => {
+        console.error(error);
+        let errorMessage = 'Something went wrong.';
+        if (error.code === 'auth/user-not-found') {
+          errorMessage = 'No user found with this email.';
+        } else if (error.code === 'auth/wrong-password') {
+          errorMessage = 'Incorrect password.';
+        } else if (error.code === 'auth/invalid-email') {
+          errorMessage = 'The email address is invalid.';
+        }
+        Alert.alert('Sign In Error', errorMessage);
+      });
+  };
+
+  const handleGoogleSignIn = async () => {
+    // Implement Google Sign-In (see Section 6)
+    Alert.alert('Info', 'Google sign-in to be implemented');
+  };
+
+  const handleAppleSignIn = async () => {
+    // Implement Apple Sign-In (see Section 7)
+    Alert.alert('Info', 'Apple sign-in to be implemented');
+  };
+
+  return (
+    <View style={styles.container}>
+      <Image
+        source={require('../../../assets/horizontal.png')} // Adjust the path if necessary
+        style={[styles.logo, { width: 400, height: 200 }]}
+      />
+      <Text style={styles.title}>Sign In</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Email"
+        placeholderTextColor="#AAAAAA"
+        keyboardType="email-address"
+        autoCapitalize="none"
+        value={email}
+        onChangeText={setEmail}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Password"
+        placeholderTextColor="#AAAAAA"
+        secureTextEntry
+        value={password}
+        onChangeText={setPassword}
+      />
+      <TouchableOpacity style={styles.button} onPress={handleSignIn}>
+        <Text style={styles.buttonText}>Sign In</Text>
+      </TouchableOpacity>
+
+      <Text style={styles.orText}>Or</Text>
+
+      <View style={styles.iconContainer}>
+        {/* Google Sign-In Button */}
+        <TouchableOpacity onPress={handleGoogleSignIn}>
+          <Image
+            source={{ uri: 'https://img.icons8.com/color/48/000000/google-logo.png' }}
+            style={styles.icon}
+          />
+        </TouchableOpacity>
+        {/* Apple Sign-In Button */}
+        <TouchableOpacity onPress={handleAppleSignIn}>
+          <Image
+            source={{ uri: 'https://img.icons8.com/ios-filled/50/000000/mac-os.png' }}
+            style={styles.icon}
+          />
+        </TouchableOpacity>
+      </View>
+
+      <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
+        <Text style={styles.footerText}>
+          Don't have an account? <Text style={styles.footerLink}>Sign Up</Text>
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#1E1E2C',
+    padding: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logo: {
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 24,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+  input: {
+    width: '100%',
+    padding: 15,
+    borderWidth: 1,
+    borderColor: '#333333',
+    borderRadius: 10,
+    marginBottom: 10,
+    color: '#FFFFFF',
+  },
+  button: {
+    backgroundColor: '#00ADEF',
+    padding: 15,
+    borderRadius: 30,
+    marginBottom: 10,
+    width: '100%',
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  orText: {
+    color: '#FFFFFF',
+    marginVertical: 10,
+  },
+  iconContainer: {
+    flexDirection: 'row',
+    marginBottom: 20,
+  },
+  icon: {
+    width: 40,
+    height: 40,
+    marginHorizontal: 10,
+  },
+  footerText: {
+    color: '#AAAAAA',
+  },
+  footerLink: {
+    color: '#00ADEF',
+  },
+});
+
+export default SignIn;
+```
+
+### b. Explanation
+
+- **Import Statements:**
+  - `signInWithEmailAndPassword` from `firebase/auth` handles the sign-in process.
+  - `auth` is imported from your Firebase configuration.
+
+- **State Management:**
+  - `email` and `password` are managed using React's `useState`.
+
+- **`handleSignIn` Function:**
+  - Validates that both email and password fields are filled.
+  - Uses Firebase's `signInWithEmailAndPassword` to authenticate the user.
+  - On success, navigates to the "Home" screen.
+  - On failure, displays appropriate error messages.
+
+- **UI Components:**
+  - Input fields for email and password.
+  - Buttons for signing in and placeholders for Google and Apple sign-in.
+  - Navigation to the Sign-Up screen.
+
+---
+
+## 6. Implementing Google Sign-In
+
+Integrating Google Sign-In requires additional setup. Since you're using Expo, we'll utilize `expo-auth-session` to handle OAuth flows.
+
+### a. Enable Google Sign-In in Firebase
+
+1. In your Firebase project dashboard, navigate to **"Authentication" > "Sign-in method"**.
+2. Enable **"Google"** as a sign-in provider.
+3. Configure the **"Project support email"** if prompted.
+4. Save the changes.
+
+### b. Configure Google Sign-In in Your App
+
+**Note:** For web-based OAuth in Expo, certain configurations are necessary. We'll use the Expo `AuthSession` to handle the OAuth flow.
+
+### c. Update `SignIn.js` for Google Sign-In
+
+**src/screens/SignIn.js**
+
+```jsx
+// src/screens/SignIn.js
+
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  Image,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
+import { auth } from '../firebase/firebase'; // Adjust the path if necessary
+import { useNavigation } from '@react-navigation/native';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
+
+WebBrowser.maybeCompleteAuthSession();
+
+const SignIn = () => {
+  const navigation = useNavigation();
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  // Configure Google Sign-In
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    expoClientId: 'YOUR_EXPO_CLIENT_ID.apps.googleusercontent.com', // Replace with your Expo Client ID
+    iosClientId: 'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com',     // Replace with your iOS Client ID
+    androidClientId: 'YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com', // Replace with your Android Client ID
+    webClientId: 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com',     // Replace with your Web Client ID
+  });
+
+  React.useEffect(() => {
+    if (response?.type === 'success') {
+      const { authentication } = response;
+      const credential = GoogleAuthProvider.credential(authentication.idToken, authentication.accessToken);
+      signInWithCredential(auth, credential)
+        .then((userCredential) => {
+          // Signed in
+          const user = userCredential.user;
+          console.log('User signed in with Google:', user.email);
+          Alert.alert('Success', 'Google sign-in successful!');
+          navigation.navigate('Home');
+        })
+        .catch((error) => {
+          console.error(error);
+          Alert.alert('Google Sign-In Error', error.message);
+        });
+    }
+  }, [response]);
+
+  const handleSignIn = () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please fill in all fields.');
+      return;
+    }
+
+    // Firebase Sign-In
+    signInWithEmailAndPassword(auth, email, password)
+      .then((userCredential) => {
+        // Signed in
+        const user = userCredential.user;
+        console.log('User signed in:', user.email);
+        Alert.alert('Success', 'Sign in successful!');
+        navigation.navigate('Home');
+      })
+      .catch((error) => {
+        console.error(error);
+        let errorMessage = 'Something went wrong.';
+        if (error.code === 'auth/user-not-found') {
+          errorMessage = 'No user found with this email.';
+        } else if (error.code === 'auth/wrong-password') {
+          errorMessage = 'Incorrect password.';
+        } else if (error.code === 'auth/invalid-email') {
+          errorMessage = 'The email address is invalid.';
+        }
+        Alert.alert('Sign In Error', errorMessage);
+      });
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await promptAsync();
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Google Sign-In Error', error.message);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    // Implement Apple Sign-In (see Section 7)
+    Alert.alert('Info', 'Apple sign-in to be implemented');
+  };
+
+  return (
+    <View style={styles.container}>
+      <Image
+        source={require('../../../assets/horizontal.png')} // Adjust the path if necessary
+        style={[styles.logo, { width: 400, height: 200 }]}
+      />
+      <Text style={styles.title}>Sign In</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Email"
+        placeholderTextColor="#AAAAAA"
+        keyboardType="email-address"
+        autoCapitalize="none"
+        value={email}
+        onChangeText={setEmail}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Password"
+        placeholderTextColor="#AAAAAA"
+        secureTextEntry
+        value={password}
+        onChangeText={setPassword}
+      />
+      <TouchableOpacity style={styles.button} onPress={handleSignIn}>
+        <Text style={styles.buttonText}>Sign In</Text>
+      </TouchableOpacity>
+
+      <Text style={styles.orText}>Or</Text>
+
+      <View style={styles.iconContainer}>
+        {/* Google Sign-In Button */}
+        <TouchableOpacity onPress={handleGoogleSignIn} disabled={!request}>
+          <Image
+            source={{ uri: 'https://img.icons8.com/color/48/000000/google-logo.png' }}
+            style={styles.icon}
+          />
+        </TouchableOpacity>
+        {/* Apple Sign-In Button */}
+        <TouchableOpacity onPress={handleAppleSignIn}>
+          <Image
+            source={{ uri: 'https://img.icons8.com/ios-filled/50/000000/mac-os.png' }}
+            style={styles.icon}
+          />
+        </TouchableOpacity>
+      </View>
+
+      <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
+        <Text style={styles.footerText}>
+          Don't have an account? <Text style={styles.footerLink}>Sign Up</Text>
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#1E1E2C',
+    padding: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logo: {
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 24,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+  input: {
+    width: '100%',
+    padding: 15,
+    borderWidth: 1,
+    borderColor: '#333333',
+    borderRadius: 10,
+    marginBottom: 10,
+    color: '#FFFFFF',
+  },
+  button: {
+    backgroundColor: '#00ADEF',
+    padding: 15,
+    borderRadius: 30,
+    marginBottom: 10,
+    width: '100%',
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  orText: {
+    color: '#FFFFFF',
+    marginVertical: 10,
+  },
+  iconContainer: {
+    flexDirection: 'row',
+    marginBottom: 20,
+  },
+  icon: {
+    width: 40,
+    height: 40,
+    marginHorizontal: 10,
+  },
+  footerText: {
+    color: '#AAAAAA',
+  },
+  footerLink: {
+    color: '#00ADEF',
+  },
+});
+
+export default SignIn;
+```
+
+### b. Explanation
+
+- **Import Statements:**
+  - `Google.useAuthRequest` and `signInWithCredential` are used for Google Sign-In.
+  - `WebBrowser.maybeCompleteAuthSession()` is necessary for proper handling of the auth session.
+
+- **Google Sign-In Configuration:**
+  - Replace `'YOUR_EXPO_CLIENT_ID.apps.googleusercontent.com'`, `'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com'`, `'YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com'`, and `'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com'` with your actual client IDs from Firebase. To obtain these:
+    - Go to **Firebase Console > Project Settings > General > Your apps > Firebase SDK snippet**.
+    - You might need to set up OAuth client IDs in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
+
+- **`handleGoogleSignIn` Function:**
+  - Initiates the Google sign-in process using Expo's `AuthSession`.
+  - Upon successful authentication, retrieves the credential and signs in with Firebase.
+
+- **UI Components:**
+  - Added functionality to the Google sign-in button.
+
+**⚠️ Important:** Ensure you have correctly set up OAuth consent screens and authorized redirect URIs in the Google Cloud Console to match your Expo project.
+
+---
+
+## 7. Implementing Apple Sign-In
+
+Apple Sign-In is only available on iOS devices. We'll use `expo-apple-authentication` to handle Apple Sign-In.
+
+### a. Enable Apple Sign-In in Firebase
+
+1. In your Firebase project dashboard, navigate to **"Authentication" > "Sign-in method"**.
+2. Enable **"Apple"** as a sign-in provider.
+3. Configure the necessary fields:
+   - **Service ID:** Obtain from your Apple Developer account.
+   - **Team ID:** Your Apple Developer team ID.
+   - **Key ID:** The identifier for your private key.
+   - **Private Key:** Upload the private key file.
+4. Save the changes.
+
+### b. Configure Apple Sign-In in Your App
+
+**Note:** Apple Sign-In requires additional setup in your Apple Developer account, including setting up a Service ID and generating a private key.
+
+### c. Update `SignIn.js` for Apple Sign-In
+
+**src/screens/SignIn.js**
+
+```jsx
+// src/screens/SignIn.js
+
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  Image,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import {
+  signInWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithCredential,
+  OAuthProvider,
+} from 'firebase/auth';
+import { auth } from '../firebase/firebase'; // Adjust the path if necessary
+import { useNavigation } from '@react-navigation/native';
+import * as Google from 'expo-auth-session/providers/google';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as WebBrowser from 'expo-web-browser';
+
+WebBrowser.maybeCompleteAuthSession();
+
+const SignIn = () => {
+  const navigation = useNavigation();
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  // Configure Google Sign-In
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    expoClientId: 'YOUR_EXPO_CLIENT_ID.apps.googleusercontent.com', // Replace with your Expo Client ID
+    iosClientId: 'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com',     // Replace with your iOS Client ID
+    androidClientId: 'YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com', // Replace with your Android Client ID
+    webClientId: 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com',     // Replace with your Web Client ID
+  });
+
+  React.useEffect(() => {
+    if (response?.type === 'success') {
+      const { authentication } = response;
+      const credential = GoogleAuthProvider.credential(authentication.idToken, authentication.accessToken);
+      signInWithCredential(auth, credential)
+        .then((userCredential) => {
+          // Signed in
+          const user = userCredential.user;
+          console.log('User signed in with Google:', user.email);
+          Alert.alert('Success', 'Google sign-in successful!');
+          navigation.navigate('Home');
+        })
+        .catch((error) => {
+          console.error(error);
+          Alert.alert('Google Sign-In Error', error.message);
+        });
+    }
+  }, [response]);
+
+  const handleSignIn = () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please fill in all fields.');
+      return;
+    }
+
+    // Firebase Sign-In
+    signInWithEmailAndPassword(auth, email, password)
+      .then((userCredential) => {
+        // Signed in
+        const user = userCredential.user;
+        console.log('User signed in:', user.email);
+        Alert.alert('Success', 'Sign in successful!');
+        navigation.navigate('Home');
+      })
+      .catch((error) => {
+        console.error(error);
+        let errorMessage = 'Something went wrong.';
+        if (error.code === 'auth/user-not-found') {
+          errorMessage = 'No user found with this email.';
+        } else if (error.code === 'auth/wrong-password') {
+          errorMessage = 'Incorrect password.';
+        } else if (error.code === 'auth/invalid-email') {
+          errorMessage = 'The email address is invalid.';
+        }
+        Alert.alert('Sign In Error', errorMessage);
+      });
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await promptAsync();
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Google Sign-In Error', error.message);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      // Create an OAuth credential from the token
+      const provider = new OAuthProvider('apple.com');
+      const appleCredential = provider.credential({
+        idToken: credential.identityToken,
+        rawNonce: '',
+      });
+
+      // Sign in with Firebase
+      signInWithCredential(auth, appleCredential)
+        .then((userCredential) => {
+          // Signed in
+          const user = userCredential.user;
+          console.log('User signed in with Apple:', user.email);
+          Alert.alert('Success', 'Apple sign-in successful!');
+          navigation.navigate('Home');
+        })
+        .catch((error) => {
+          console.error(error);
+          Alert.alert('Apple Sign-In Error', error.message);
+        });
+    } catch (error) {
+      if (error.code === 'ERR_CANCELED') {
+        // Handle that the user canceled the sign-in flow
+        Alert.alert('Info', 'Apple sign-in canceled.');
+      } else {
+        console.error(error);
+        Alert.alert('Apple Sign-In Error', error.message);
+      }
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <Image
+        source={require('../../../assets/horizontal.png')} // Adjust the path if necessary
+        style={[styles.logo, { width: 400, height: 200 }]}
+      />
+      <Text style={styles.title}>Sign In</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Email"
+        placeholderTextColor="#AAAAAA"
+        keyboardType="email-address"
+        autoCapitalize="none"
+        value={email}
+        onChangeText={setEmail}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Password"
+        placeholderTextColor="#AAAAAA"
+        secureTextEntry
+        value={password}
+        onChangeText={setPassword}
+      />
+      <TouchableOpacity style={styles.button} onPress={handleSignIn}>
+        <Text style={styles.buttonText}>Sign In</Text>
+      </TouchableOpacity>
+
+      <Text style={styles.orText}>Or</Text>
+
+      <View style={styles.iconContainer}>
+        {/* Google Sign-In Button */}
+        <TouchableOpacity onPress={handleGoogleSignIn} disabled={!request}>
+          <Image
+            source={{ uri: 'https://img.icons8.com/color/48/000000/google-logo.png' }}
+            style={styles.icon}
+          />
+        </TouchableOpacity>
+        {/* Apple Sign-In Button */}
+        {Platform.OS === 'ios' && (
+          <TouchableOpacity onPress={handleAppleSignIn}>
+            <Image
+              source={{ uri: 'https://img.icons8.com/ios-filled/50/000000/mac-os.png' }}
+              style={styles.icon}
+            />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
+        <Text style={styles.footerText}>
+          Don't have an account? <Text style={styles.footerLink}>Sign Up</Text>
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#1E1E2C',
+    padding: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logo: {
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 24,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+  input: {
+    width: '100%',
+    padding: 15,
+    borderWidth: 1,
+    borderColor: '#333333',
+    borderRadius: 10,
+    marginBottom: 10,
+    color: '#FFFFFF',
+  },
+  button: {
+    backgroundColor: '#00ADEF',
+    padding: 15,
+    borderRadius: 30,
+    marginBottom: 10,
+    width: '100%',
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  orText: {
+    color: '#FFFFFF',
+    marginVertical: 10,
+  },
+  iconContainer: {
+    flexDirection: 'row',
+    marginBottom: 20,
+  },
+  icon: {
+    width: 40,
+    height: 40,
+    marginHorizontal: 10,
+  },
+  footerText: {
+    color: '#AAAAAA',
+  },
+  footerLink: {
+    color: '#00ADEF',
+  },
+});
+
+export default SignIn;
+```
+
+### d. Explanation
+
+- **Apple Sign-In:**
+  - Uses `expo-apple-authentication` to handle the sign-in flow.
+  - After obtaining the Apple credential, it creates an OAuth credential for Firebase and signs in.
+  - Only available on iOS; hence, wrapped with `Platform.OS === 'ios'`.
+
+- **Google Sign-In:**
+  - Configured similarly as before with `expo-auth-session`.
+  - Ensure you replace client IDs with your actual IDs from the Firebase console.
+
+- **UI Components:**
+  - Apple sign-in button only appears on iOS devices.
+  - Both Google and Apple sign-in buttons are functional and linked to their respective handlers.
+
+---
+
+## 8. Managing Authentication State
+
+To manage user authentication state across your app, it's best to use React Context. This allows different components to access the current authentication state without prop drilling.
+
+### a. Create `AuthContext`
+
+**src/context/AuthContext.js**
+
+```javascript
+// src/context/AuthContext.js
+
+import React, { createContext, useState, useEffect } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../firebase/firebase';
+
+export const AuthContext = createContext({});
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [initializing, setInitializing] = useState(true);
+
+  useEffect(() => {
+    const subscriber = onAuthStateChanged(auth, (usr) => {
+      setUser(usr);
+      if (initializing) setInitializing(false);
+    });
+
+    // Unsubscribe on unmount
+    return subscriber;
+  }, [initializing]);
+
+  if (initializing) {
+    // You can render a loading screen here
+    return null;
+  }
+
+  return (
+    <AuthContext.Provider value={{ user }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+```
+
+### b. Wrap Your App with `AuthProvider`
+
+Modify your `App.js` to include the `AuthProvider`.
+
+**App.js**
+
+```jsx
+// App.js
+
+import React from 'react';
+import { AuthProvider } from './src/context/AuthContext';
+import AppNavigator from './src/navigation/AppNavigator';
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppNavigator />
+    </AuthProvider>
+  );
+}
+```
+
+### c. Update Navigation Based on Authentication State
+
+Modify your `AppNavigator.js` to navigate users based on their authentication state.
+
+**src/navigation/AppNavigator.js**
+
+```jsx
+// src/navigation/AppNavigator.js
+
+import React, { useContext } from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+
+import SignIn from '../screens/SignIn';
+import SignUp from '../screens/SignUp';
+import Home from '../screens/Home';
+import Search from '../screens/Search';
+import MusicPlayerScreen from '../screens/MusicPlayerScreen';
+import Settings from '../screens/Settings';
+import { AuthContext } from '../context/AuthContext';
+
+const Stack = createStackNavigator();
+
+const AppNavigator = () => {
+  const { user } = useContext(AuthContext);
+
+  return (
+    <NavigationContainer>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {user ? (
+          // User is signed in
+          <>
+            <Stack.Screen name="Home" component={Home} />
+            <Stack.Screen name="Search" component={Search} />
+            <Stack.Screen name="MusicPlayerScreen" component={MusicPlayerScreen} />
+            <Stack.Screen name="Settings" component={Settings} />
+          </>
+        ) : (
+          // User is not signed in
+          <>
+            <Stack.Screen name="SignIn" component={SignIn} />
+            <Stack.Screen name="SignUp" component={SignUp} />
+          </>
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+};
+
+export default AppNavigator;
+```
+
+### d. Explanation
+
+- **AuthContext:** Provides the current user state across the app.
+- **AppNavigator:** Switches between authentication screens and main app screens based on whether the user is signed in.
+
+---
+
+## 9. Securing Firebase Configuration
+
+While Firebase config variables are safe to expose in your frontend code, ensure you have proper security rules set in Firebase, especially for Firestore and Storage if used.
+
+**Best Practices:**
+
+- **Use Environment Variables:** Use tools like [react-native-dotenv](https://github.com/goatandsheep/react-native-dotenv) to manage environment variables, keeping sensitive data out of your codebase.
+
+- **Set Firebase Security Rules:** Ensure your Firebase Firestore and Storage have appropriate security rules to prevent unauthorized access.
+
+---
+
+## 10. Finalizing Navigation
+
+Ensure your navigation setup allows users to navigate between screens seamlessly.
+
+### a. Update PlayerBar to Use Navigation
+
+Ensure your `PlayerBar` uses the `onNavigate` prop correctly to navigate to the `MusicPlayerScreen`.
+
+**src/components/PlayerBar.js**
+
+```jsx
+// src/components/PlayerBar.js
+
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+
+const PlayerBar = ({ currentSong, isPlaying, onPlayPause, onNavigate }) => {
+  if (!currentSong) return null;
+
+  return (
+    <TouchableOpacity style={styles.container} onPress={onNavigate} activeOpacity={0.9}>
+      <View style={styles.songInfo}>
+        <Image source={currentSong.image} style={styles.image} />
+        <View>
+          <Text style={styles.title}>{currentSong.title}</Text>
+          <Text style={styles.artist}>{currentSong.artist}</Text>
+        </View>
+      </View>
+      <TouchableOpacity
+        onPress={(e) => {
+          e.stopPropagation(); // Prevent triggering onNavigate
+          onPlayPause();
+        }}
+      >
+        <Ionicons name={isPlaying ? 'pause-circle' : 'play-circle'} size={40} color="#1DB954" />
+      </TouchableOpacity>
+    </TouchableOpacity>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 10,
+    backgroundColor: '#282838',
+    borderTopWidth: 1,
+    borderTopColor: '#333',
+  },
+  songInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  image: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 10,
+  },
+  title: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  artist: {
+    color: '#ccc',
+    fontSize: 14,
+  },
+});
+
+export default PlayerBar;
+```
+
+### b. Explanation
+
+- **`onNavigate`:** Triggered when the player bar is pressed, navigating to `MusicPlayerScreen`.
+- **`onPlayPause`:** Toggles play/pause without navigating.
+
+---
+
+## 11. Troubleshooting
+
+### a. PlayerBar Not Showing in Search Screen
+
+**Possible Reasons:**
+
+1. **`currentSong` is null:** Ensure that `currentSong` is set in the `AudioContext`.
+2. **Positioning Issues:** Ensure the `PlayerBar` is not being overlapped by other components.
+3. **Conditional Rendering:** Check if `PlayerBar` is correctly rendered based on `currentSong`.
+
+**Solutions:**
+
+- **Set a Default `currentSong`:** For testing, set a default `currentSong` in the `AudioContext`.
+- **Adjust `contentContainerStyle`:** Add padding or margin to the `ScrollView` to accommodate the `PlayerBar`.
+
+**Example Update in `Search.js`:**
+
+```jsx
+// ... inside Search component's return statement
+
+<ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
+  {/* Existing components */}
+</ScrollView>
+
+{/* PlayerBar */}
+{currentSong && (
+  <PlayerBar
+    currentSong={currentSong}
+    isPlaying={isPlaying}
+    onPlayPause={playPauseHandler}
+    onNavigate={handleNavigateToPlayer}
+  />
+)}
+```
+
+### b. MusicPlayerScreen Not Opening from Search Screen's PlayerBar
+
+**Possible Reasons:**
+
+1. **Incorrect Navigation Prop:** Ensure that `useNavigation` is correctly used in `PlayerBar` or passed from parent.
+2. **Missing `MusicPlayerScreen` in Navigator:** Ensure `MusicPlayerScreen` is registered in your `AppNavigator`.
+3. **`currentSong` Not Set Properly:** Ensure `currentSong` contains valid data.
+
+**Solutions:**
+
+- **Check Navigator:** Ensure `MusicPlayerScreen` is correctly defined in your `AppNavigator.js`.
+- **Pass Correct `track` Prop:** Ensure you're passing the `track` prop when navigating.
+- **Debug `onNavigate`:** Add console logs to verify the function is called.
+
+---
+
+## 12. Conclusion
+
+By following the steps above, you should have successfully integrated Firebase Authentication into your React Native (Expo) application, allowing users to sign up and sign in using email/password, Google, and Apple methods. Additionally, managing authentication state with React Context ensures a seamless user experience across different screens, with a consistent `PlayerBar`.
+
+**Next Steps:**
+
+- **Implement Firestore or Realtime Database:** To store additional user data like playlists, favorites, etc.
+- **Enhance UI/UX:** Improve the design and animations for a better user experience.
+- **Handle Edge Cases:** Such as network errors, authentication token refreshes, etc.
+- **Secure Firebase Rules:** Ensure your Firebase services are secure and only accessible by authorized users.
+
+Feel free to reach out if you encounter any issues or need further assistance!
